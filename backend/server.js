@@ -61,46 +61,49 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Database connection logic with automatic MongoMemoryServer fallback
+// Database connection logic
 const connectDB = async () => {
   let mongoUri = process.env.MONGO_URI;
 
-  try {
-    if (mongoUri) {
-      console.log('Connecting to provided MONGO_URI...');
-      await mongoose.connect(mongoUri);
-      console.log('✅ Connected to MongoDB via MONGO_URI');
-    } else {
-      console.log('⚠️ No MONGO_URI found in environment. Initializing MongoMemoryServer for instant zero-config setup...');
-      const { MongoMemoryServer } = await import('mongodb-memory-server');
-      const mongod = await MongoMemoryServer.create();
-      mongoUri = mongod.getUri();
-      await mongoose.connect(mongoUri);
-      console.log(`✅ Connected to In-Memory MongoDB Server at: ${mongoUri}`);
-    }
-
-    // Auto-seed initial demo content if database is empty
-    await seedDatabase();
-
-  } catch (error) {
-    console.error('Failed to connect to primary MongoDB, attempting fallback in-memory server:', error.message);
+  if (mongoUri) {
     try {
-      const { MongoMemoryServer } = await import('mongodb-memory-server');
-      const mongod = await MongoMemoryServer.create();
-      mongoUri = mongod.getUri();
-      await mongoose.connect(mongoUri);
-      console.log(`✅ Fallback: Connected to In-Memory MongoDB Server at: ${mongoUri}`);
+      console.log('Connecting to provided MONGO_URI...');
+      await mongoose.connect(mongoUri, {
+        serverSelectionTimeoutMS: 10000,
+      });
+      console.log('✅ Connected to MongoDB via MONGO_URI');
       await seedDatabase();
-    } catch (fallbackError) {
-      console.error('❌ Critical MongoDB connection failure:', fallbackError);
-      process.exit(1);
+      return;
+    } catch (error) {
+      console.error('Failed to connect to primary MONGO_URI:', error.message);
     }
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    console.error('⚠️ [PRODUCTION CONFIG] MONGO_URI is missing or unreachable.');
+    console.error('👉 Please configure MONGO_URI in your Render Dashboard: Environment -> Add Environment Variable -> MONGO_URI');
+  }
+
+  try {
+    console.log('Initializing in-memory database fallback...');
+    const { MongoMemoryServer } = await import('mongodb-memory-server');
+    const mongod = await MongoMemoryServer.create({
+      binary: {
+        version: '7.0.14',
+      },
+    });
+    mongoUri = mongod.getUri();
+    await mongoose.connect(mongoUri);
+    console.log(`✅ Connected to In-Memory MongoDB Server at: ${mongoUri}`);
+    await seedDatabase();
+  } catch (fallbackError) {
+    console.error('⚠️ In-memory database fallback failed:', fallbackError.message);
+    console.error('Please ensure MONGO_URI is set in your Render Environment Variables.');
   }
 };
 
-// Start Server
-connectDB().then(() => {
-  app.listen(PORT, () => {
-    console.log(`🚀 TaskPlanet Social Server running on http://localhost:${PORT}`);
-  });
+// Start Server immediately so Render port binding succeeds
+app.listen(PORT, async () => {
+  console.log(`🚀 TaskPlanet Social Server running on port ${PORT}`);
+  await connectDB();
 });
