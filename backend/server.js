@@ -71,7 +71,7 @@ const connectDB = async () => {
       await mongoose.connect(mongoUri, {
         serverSelectionTimeoutMS: 10000,
       });
-      console.log('✅ Connected to MongoDB via MONGO_URI');
+      console.log('Connected to MongoDB via MONGO_URI');
       await seedDatabase();
       return;
     } catch (error) {
@@ -80,8 +80,8 @@ const connectDB = async () => {
   }
 
   if (process.env.NODE_ENV === 'production') {
-    console.error('⚠️ [PRODUCTION CONFIG] MONGO_URI is missing or unreachable.');
-    console.error('👉 Please configure MONGO_URI in your Render Dashboard: Environment -> Add Environment Variable -> MONGO_URI');
+    console.error('[PRODUCTION CONFIG] MONGO_URI is missing or unreachable.');
+    console.error('Please configure MONGO_URI in your Render Dashboard: Environment -> Add Environment Variable -> MONGO_URI');
   }
 
   try {
@@ -94,16 +94,16 @@ const connectDB = async () => {
     });
     mongoUri = mongod.getUri();
     await mongoose.connect(mongoUri);
-    console.log(`✅ Connected to In-Memory MongoDB Server at: ${mongoUri}`);
+    console.log(`Connected to In-Memory MongoDB Server at: ${mongoUri}`);
     await seedDatabase();
   } catch (fallbackError) {
-    console.error('⚠️ In-memory database fallback failed:', fallbackError.message);
+    console.error('In-memory database fallback failed:', fallbackError.message);
     console.error('Please ensure MONGO_URI is set in your Render Environment Variables.');
   }
 };
 
 // Start Server immediately so Render port binding succeeds
 app.listen(PORT, async () => {
-  console.log(`🚀 TaskPlanet Social Server running on port ${PORT}`);
+  console.log(`TaskPlanet Social Server running on port ${PORT}`);
   await connectDB();
 });
